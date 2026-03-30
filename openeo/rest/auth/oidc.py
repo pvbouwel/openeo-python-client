@@ -210,6 +210,7 @@ class AccessTokenResult(NamedTuple):
     access_token: str
     id_token: Optional[str] = None
     refresh_token: Optional[str] = None
+    expires_in: Optional[int] = None
 
 
 def jwt_decode(token: str) -> Tuple[dict, dict]:
@@ -435,7 +436,21 @@ class OidcAuthenticator:
             access_token=self._extract_token(data, "access_token"),
             id_token=self._extract_token(data, "id_token", expected_nonce=expected_nonce, allow_absent=True),
             refresh_token=self._extract_token(data, "refresh_token", allow_absent=True),
+            expires_in=self._extract_expires_in(data),
         )
+
+    @staticmethod
+    def _extract_expires_in(data: dict) -> Union[int, None]:
+        """
+        Extract the expires_in response which is the lifetime expressed in seconds.
+        """
+        try:
+            return int(data["expires_in"])
+        except KeyError:
+            log.warning("No expires_in value in token")
+        except ValueError:
+            log.warning(f"Extracting expires in fails because not an int value: {data.get('expires_in')}")
+        return None
 
     @staticmethod
     def _extract_token(data: dict, key: str, expected_nonce: str = None, allow_absent=False) -> Union[str, None]:
